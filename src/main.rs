@@ -1,10 +1,12 @@
 #![allow(non_camel_case_types)]
 #![allow(non_upper_case_globals)]
 #![allow(non_snake_case)]
+#![allow(unused_parens)]
+#![allow(unused_variables)]
 
 extern crate libc;
 
-use std::default::Default;
+//use std::default::Default;
 
 use std::io;
 use std::os;
@@ -555,18 +557,35 @@ extern "C" {
     pub fn mps_fix(arg1: mps_ss_t, arg2: *mut mps_addr_t) -> mps_res_t;
     pub fn _mps_fix2(arg1: mps_ss_t, arg2: *mut mps_addr_t) -> mps_res_t;
 
+
+    //#include "mpsavm.h"
     pub fn mps_arena_class_vm() -> mps_arena_class_t;
+
+    //#include "mpsacl.h"
     pub fn mps_arena_class_cl() -> mps_arena_class_t;
 
-}
 
+    //#include "mpscmvff.h"
+    //extern const struct mps_key_s _mps_key_MVFF_SLOT_HIGH;
+    //extern const struct mps_key_s _mps_key_MVFF_ARENA_HIGH;
+    //extern const struct mps_key_s _mps_key_MVFF_FIRST_FIT;
+    //#define mps_mvff_free_size mps_pool_free_size
+    //#define mps_mvff_size mps_pool_total_size
+
+    pub fn mps_class_mvff() -> mps_pool_class_t;
+    pub fn mps_class_mvff_debug() -> mps_pool_class_t;
+
+    pub static _mps_key_MVFF_SLOT_HIGH : Struct_mps_key_s;
+    pub static _mps_key_MVFF_ARENA_HIGH : Struct_mps_key_s;
+    pub static _mps_key_MVFF_FIRST_FIT : Struct_mps_key_s;
+
+}
 
 /*
 #define MPS_ARGS_BEGIN(_var) \
     mps_arg_s _var[MPS_ARGS_MAX]; \
     unsigned _var##_i = 0; \
     _mps_args_set_key(_var, _var##_i, MPS_KEY_ARGS_END); \
-
 
 #define MPS_ARGS_ADD_FIELD(_var, _key, _field, _val)  \
   MPS_BEGIN \
@@ -584,11 +603,27 @@ extern "C" {
 
 
 
+/*
+macro_rules! MPS_ARGS_BEGIN(
+    (using $arena:ident
+      $($k:expr $v:expr),+) => (
+
+        $(  ),+
+
+
+        let mut args : [mps_arg_s, ..2] = std::mem::uninitialized();
+
+        args[0] = Struct_mps_arg_s { key: MPS_KEY_ARENA_SIZE,
+                                     val:  mps_args_val { data: [32 * 1024 * 1024] }
+                                   };
+    )
+)*/
+
 
 fn main() {
-   
+    // mps.h
     let MPS_KEY_ARGS_END : mps_key_t  = (&_mps_key_ARGS_END);
-    let MPS_KEY_ARENA_SIZE : mps_key_t = (&_mps_key_ARENA_SIZE);
+    let MPS_KEY_ARENA_SIZE = (&_mps_key_ARENA_SIZE);
     let MPS_KEY_ARENA_GRAIN_SIZE = (&_mps_key_ARENA_GRAIN_SIZE);
     let MPS_KEY_ARENA_ZONED = (&_mps_key_ARENA_ZONED);
     let MPS_KEY_FORMAT = (&_mps_key_FORMAT);
@@ -612,30 +647,76 @@ fn main() {
     let MPS_KEY_FMT_ISFWD = (&_mps_key_FMT_ISFWD);
     let MPS_KEY_FMT_PAD  = (&_mps_key_FMT_PAD);
     let MPS_KEY_FMT_CLASS  = (&_mps_key_FMT_CLASS);
+    
+    //mpscmvff.h
+    let MPS_KEY_MVFF_SLOT_HIGH = (&_mps_key_MVFF_SLOT_HIGH);
+    let MPS_KEY_MVFF_ARENA_HIGH = (&_mps_key_MVFF_ARENA_HIGH);
+    let MPS_KEY_MVFF_FIRST_FIT = (&_mps_key_MVFF_FIRST_FIT);
 
-    let mut arena : *mut mps_arena_t;
-    let res : mps_res_t;
 
-    unsafe {
-        let mut args : [mps_arg_s, ..1];
 
-        args[0] = Struct_mps_arg_s { key: MPS_KEY_ARENA_SIZE,
-                                     val:  mps_args_val { data: [32 * 1024 * 1024] }
-                                   };
 
-        
-        res = mps_arena_create_k(arena, mps_arena_class_vm(), args.as_ptr()  );
+    let mut res : mps_res_t = unsafe{ std::mem::uninitialized() };
 
-        if ( MPS_RES_OK == res ) {
-            println!("MPS_RES_OK");
-        } else {
-            println!("NOT MPS_RES_OK");
-        }
-        
-        //args.get_mut(0).key = MPS_KEY_ARGS_END;
-        //args.get_mut(0).val.size = 6553600;    
-                
+    let mut arena : mps_arena_t = unsafe{ std::mem::uninitialized() };
+    let mut pool : mps_pool_t = unsafe{ std::mem::uninitialized() };
+    let mut alloc_point : mps_ap_t = unsafe{ std::mem::uninitialized() };
+
+
+    // ------------------------ Arena ------------------------
+    let mut arena_args : [mps_arg_s, ..2] = unsafe{  std::mem::uninitialized() };
+
+    arena_args[0] = Struct_mps_arg_s { key: MPS_KEY_ARENA_SIZE,
+                                 val:  mps_args_val { data: [32 * 1024 * 1024] }
+                               };
+    arena_args[1] = Struct_mps_arg_s { key: MPS_KEY_ARGS_END,
+                                 val:  mps_args_val { data: [0] }
+                               };
+    
+    res = unsafe { mps_arena_create_k(&mut arena, mps_arena_class_vm(), arena_args.as_mut_ptr() ) };
+    if (MPS_RES_OK != res) {
+        println!("Clould not creat arena");
+    } else {
+        println!("Arena created");
     }
+    
+
+    // ------------------------ Pool ------------------------
+    const mvff_args_size : uint = 1;
+    let mut mvff_args : [mps_arg_s, ..mvff_args_size] = unsafe{  std::mem::uninitialized() };
+    
+    
+
+    mvff_args[mvff_args_size-1] = Struct_mps_arg_s { key: MPS_KEY_ARGS_END,
+                                 val:  mps_args_val { data: [0] }
+                               };
+    
+
+    res = unsafe { mps_pool_create_k(&mut pool, arena, mps_class_mvff(), mvff_args.as_mut_ptr()) };
+    if (MPS_RES_OK != res) {
+        println!("Clould not creat pool");
+    } else {
+        println!("Pool created");
+    }
+    
+    // ------------------------ Allocation point ------------------------
+    
+    const ap_args_size : uint = 1;
+    let mut ap_args : [mps_arg_s, ..ap_args_size] = unsafe{  std::mem::uninitialized() };
+    
+    ap_args[ap_args_size-1] = Struct_mps_arg_s { key: MPS_KEY_ARGS_END,
+                                                 val:  mps_args_val { data: [0] }
+                                                };
+
+    res =  unsafe { mps_ap_create_k(&mut alloc_point, pool, ap_args.as_mut_ptr()) };
+    if (MPS_RES_OK != res) {
+        println!("Clould not creat AP");
+    } else {
+        println!("AP created");
+    }
+
+
+
 }
 
 
