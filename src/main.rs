@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(unused_parens)]
 #![allow(unused_variables)]
+#![allow(dead_code)]
 
 extern crate libc;
 
@@ -566,12 +567,8 @@ extern "C" {
 
 
     //#include "mpscmvff.h"
-    //extern const struct mps_key_s _mps_key_MVFF_SLOT_HIGH;
-    //extern const struct mps_key_s _mps_key_MVFF_ARENA_HIGH;
-    //extern const struct mps_key_s _mps_key_MVFF_FIRST_FIT;
-    //#define mps_mvff_free_size mps_pool_free_size
-    //#define mps_mvff_size mps_pool_total_size
-
+    //#define mps_mvff_free_size         mps_pool_free_size
+    //#define mps_mvff_size              mps_pool_total_size
     pub fn mps_class_mvff() -> mps_pool_class_t;
     pub fn mps_class_mvff_debug() -> mps_pool_class_t;
 
@@ -581,90 +578,52 @@ extern "C" {
 
 }
 
-/*
-#define MPS_ARGS_BEGIN(_var) \
-    mps_arg_s _var[MPS_ARGS_MAX]; \
-    unsigned _var##_i = 0; \
-    _mps_args_set_key(_var, _var##_i, MPS_KEY_ARGS_END); \
+// mps.h
+static MPS_KEY_ARGS_END : mps_key_t  = (&_mps_key_ARGS_END);
+static MPS_KEY_ARENA_SIZE : mps_key_t = (&_mps_key_ARENA_SIZE);
+static MPS_KEY_ARENA_GRAIN_SIZE : mps_key_t = (&_mps_key_ARENA_GRAIN_SIZE);
+static MPS_KEY_ARENA_ZONED : mps_key_t = (&_mps_key_ARENA_ZONED);
+static MPS_KEY_FORMAT : mps_key_t = (&_mps_key_FORMAT);
+static MPS_KEY_CHAIN : mps_key_t = (&_mps_key_CHAIN);
+static MPS_KEY_GEN : mps_key_t = (&_mps_key_GEN);
+static MPS_KEY_RANK : mps_key_t = (&_mps_key_RANK);
+static MPS_KEY_EXTEND_BY : mps_key_t = (&_mps_key_EXTEND_BY);
+static MPS_KEY_LARGE_SIZE : mps_key_t = (&_mps_key_LARGE_SIZE);
+static MPS_KEY_MIN_SIZE : mps_key_t = (&_mps_key_MIN_SIZE);
+static MPS_KEY_MEAN_SIZE : mps_key_t = (&_mps_key_MEAN_SIZE);
+static MPS_KEY_MAX_SIZE : mps_key_t = (&_mps_key_MAX_SIZE);
+static MPS_KEY_ALIGN : mps_key_t = (&_mps_key_ALIGN);
+static MPS_KEY_SPARE : mps_key_t = (&_mps_key_SPARE);
+static MPS_KEY_INTERIOR : mps_key_t = (&_mps_key_INTERIOR);
+static MPS_KEY_VMW3_TOP_DOWN : mps_key_t = (&_mps_key_VMW3_TOP_DOWN);
+static MPS_KEY_FMT_ALIGN : mps_key_t = (&_mps_key_FMT_ALIGN);
+static MPS_KEY_FMT_HEADER_SIZE : mps_key_t = (&_mps_key_FMT_HEADER_SIZE);
+static MPS_KEY_FMT_SCAN : mps_key_t = (&_mps_key_FMT_SCAN);
+static MPS_KEY_FMT_SKIP : mps_key_t = (&_mps_key_FMT_SKIP);
+static MPS_KEY_FMT_FWD : mps_key_t = (&_mps_key_FMT_FWD);
+static MPS_KEY_FMT_ISFWD : mps_key_t = (&_mps_key_FMT_ISFWD);
+static MPS_KEY_FMT_PAD : mps_key_t = (&_mps_key_FMT_PAD);
+static MPS_KEY_FMT_CLASS : mps_key_t = (&_mps_key_FMT_CLASS);
 
-#define MPS_ARGS_ADD_FIELD(_var, _key, _field, _val)  \
-  MPS_BEGIN \
-    _mps_args_set_key(_var, _var##_i, _key); \
-    _var[_var##_i].val._field = (_val); \
-    ++_var##_i; \
-    _mps_args_set_key(_var, _var##_i, MPS_KEY_ARGS_END); \
-  MPS_END
+//mpscmvff.h
+static MPS_KEY_MVFF_SLOT_HIGH : mps_key_t = (&_mps_key_MVFF_SLOT_HIGH);
+static MPS_KEY_MVFF_ARENA_HIGH : mps_key_t = (&_mps_key_MVFF_ARENA_HIGH);
+static MPS_KEY_MVFF_FIRST_FIT : mps_key_t = (&_mps_key_MVFF_FIRST_FIT);
 
 
-#define MPS_ARGS_ADD(_var, _key, _val) \
-  MPS_ARGS_ADD_FIELD(_var, _key, _key##_FIELD, _val)
-
-*/
-
-
-
-/*
-macro_rules! MPS_ARGS_BEGIN(
-    (using $arena:ident
-      $($k:expr $v:expr),+) => (
-
-        $(  ),+
-
-
-        let mut args : [mps_arg_s, ..2] = std::mem::uninitialized();
-
-        args[0] = Struct_mps_arg_s { key: MPS_KEY_ARENA_SIZE,
-                                     val:  mps_args_val { data: [32 * 1024 * 1024] }
-                                   };
-    )
-)*/
 
 
 fn main() {
-    // mps.h
-    let MPS_KEY_ARGS_END : mps_key_t  = (&_mps_key_ARGS_END);
-    let MPS_KEY_ARENA_SIZE = (&_mps_key_ARENA_SIZE);
-    let MPS_KEY_ARENA_GRAIN_SIZE = (&_mps_key_ARENA_GRAIN_SIZE);
-    let MPS_KEY_ARENA_ZONED = (&_mps_key_ARENA_ZONED);
-    let MPS_KEY_FORMAT = (&_mps_key_FORMAT);
-    let MPS_KEY_CHAIN = (&_mps_key_CHAIN);
-    let MPS_KEY_GEN = (&_mps_key_GEN);
-    let MPS_KEY_RANK = (&_mps_key_RANK);
-    let MPS_KEY_EXTEND_BY = (&_mps_key_EXTEND_BY);
-    let MPS_KEY_LARGE_SIZE = (&_mps_key_LARGE_SIZE);
-    let MPS_KEY_MIN_SIZE = (&_mps_key_MIN_SIZE);
-    let MPS_KEY_MEAN_SIZE = (&_mps_key_MEAN_SIZE);
-    let MPS_KEY_MAX_SIZE = (&_mps_key_MAX_SIZE);
-    let MPS_KEY_ALIGN = (&_mps_key_ALIGN);
-    let MPS_KEY_SPARE = (&_mps_key_SPARE);
-    let MPS_KEY_INTERIOR = (&_mps_key_INTERIOR);
-    let MPS_KEY_VMW3_TOP_DOWN = (&_mps_key_VMW3_TOP_DOWN);
-    let MPS_KEY_FMT_ALIGN = (&_mps_key_FMT_ALIGN);
-    let MPS_KEY_FMT_HEADER_SIZE = (&_mps_key_FMT_HEADER_SIZE);
-    let MPS_KEY_FMT_SCAN = (&_mps_key_FMT_SCAN);
-    let MPS_KEY_FMT_SKIP = (&_mps_key_FMT_SKIP);
-    let MPS_KEY_FMT_FWD = (&_mps_key_FMT_FWD);
-    let MPS_KEY_FMT_ISFWD = (&_mps_key_FMT_ISFWD);
-    let MPS_KEY_FMT_PAD  = (&_mps_key_FMT_PAD);
-    let MPS_KEY_FMT_CLASS  = (&_mps_key_FMT_CLASS);
     
-    //mpscmvff.h
-    let MPS_KEY_MVFF_SLOT_HIGH = (&_mps_key_MVFF_SLOT_HIGH);
-    let MPS_KEY_MVFF_ARENA_HIGH = (&_mps_key_MVFF_ARENA_HIGH);
-    let MPS_KEY_MVFF_FIRST_FIT = (&_mps_key_MVFF_FIRST_FIT);
+    let mut res : mps_res_t = unsafe{ std::mem::zeroed() };
 
-
-
-
-    let mut res : mps_res_t = unsafe{ std::mem::uninitialized() };
-
-    let mut arena : mps_arena_t = unsafe{ std::mem::uninitialized() };
-    let mut pool : mps_pool_t = unsafe{ std::mem::uninitialized() };
-    let mut alloc_point : mps_ap_t = unsafe{ std::mem::uninitialized() };
+    let mut arena : mps_arena_t = unsafe{ std::mem::zeroed() };
+    let mut pool : mps_pool_t = unsafe{ std::mem::zeroed() };
+    let mut alloc_point : mps_ap_t = unsafe{ std::mem::zeroed() };
 
 
     // ------------------------ Arena ------------------------
-    let mut arena_args : [mps_arg_s, ..2] = unsafe{  std::mem::uninitialized() };
+    let mut arena_args : [mps_arg_s, ..2] = unsafe{  std::mem::zeroed() };
 
     arena_args[0] = Struct_mps_arg_s { key: MPS_KEY_ARENA_SIZE,
                                  val:  mps_args_val { data: [32 * 1024 * 1024] }
@@ -683,7 +642,7 @@ fn main() {
 
     // ------------------------ Pool ------------------------
     const mvff_args_size : uint = 1;
-    let mut mvff_args : [mps_arg_s, ..mvff_args_size] = unsafe{  std::mem::uninitialized() };
+    let mut mvff_args : [mps_arg_s, ..mvff_args_size] = unsafe{  std::mem::zeroed() };
     
     
 
@@ -702,7 +661,7 @@ fn main() {
     // ------------------------ Allocation point ------------------------
     
     const ap_args_size : uint = 1;
-    let mut ap_args : [mps_arg_s, ..ap_args_size] = unsafe{  std::mem::uninitialized() };
+    let mut ap_args : [mps_arg_s, ..ap_args_size] = unsafe{  std::mem::zeroed() };
     
     ap_args[ap_args_size-1] = Struct_mps_arg_s { key: MPS_KEY_ARGS_END,
                                                  val:  mps_args_val { data: [0] }
@@ -716,11 +675,26 @@ fn main() {
     }
 
 
+    // ------------------------ Allocation ----------------------
+
+    
+    let mut addr : mps_addr_t = unsafe{ std::mem::zeroed() };
+
+    loop {
+        res = unsafe { mps_reserve(&mut addr, alloc_point, 32) };
+        
+        if unsafe { mps_commit(alloc_point, addr, 32) } == 1 {
+            println!("allocated: {}", addr);
+            break;
+        } else {
+            println!("not jet allocated"); 
+        }
+    }    
+
+
+
 
 }
-
-
-
         //let mut args : &[Struct_mps_arg_s] = &[ Struct_mps_arg_s { key: mem::uninitialized() ,
         //                                                           val: [0] as mps_args_val  } ];
         //let mut args : &[Struct_mps_arg_s] = [ mem::uninitialized(), ..32 ];
