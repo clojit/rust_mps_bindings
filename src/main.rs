@@ -297,15 +297,27 @@ pub type mps_tramp_t =
     ::std::option::Option<extern "C" fn
                               (arg1: *mut ::libc::c_void, arg2: size_t)
                               -> *mut ::libc::c_void>;
+
 pub type mps_formatted_objects_stepper_t =
     ::std::option::Option<extern "C" fn
                               (arg1: mps_addr_t, arg2: mps_fmt_t,
                                arg3: mps_pool_t, arg4: *mut ::libc::c_void,
                                arg5: size_t)>;
+
 pub type mps_roots_stepper_t =
     ::std::option::Option<extern "C" fn
                               (arg1: *mut mps_addr_t, arg2: mps_root_t,
                                arg3: *mut ::libc::c_void, arg4: size_t)>;
+
+// mpscamc.h
+// typedef void (*mps_amc_apply_stepper_t)(mps_addr_t, void *, size_t);
+pub type mps_amc_apply_stepper_t =
+    ::std::option::Option<extern "C" fn
+                              (arg1: mps_addr_t, 
+                               arg2: *mut ::libc::c_void,
+                               arg3: size_t)>;
+
+
 #[repr(C)]
 pub struct Struct_mps_pool_debug_option_s {
     pub fence_template: *const ::libc::c_void,
@@ -314,8 +326,6 @@ pub struct Struct_mps_pool_debug_option_s {
     pub free_size: size_t,
 }
 pub type mps_pool_debug_option_s = Struct_mps_pool_debug_option_s;
-
-
 
 #[link(name = "mps", kind="static")]
 extern "C" {
@@ -526,20 +536,15 @@ extern "C" {
     pub fn mps_message_finalization_ref(arg1: *mut mps_addr_t,
                                         arg2: mps_arena_t,
                                         arg3: mps_message_t);
-    pub fn mps_message_gc_live_size(arg1: mps_arena_t, arg2: mps_message_t) ->
-     size_t;
+    pub fn mps_message_gc_live_size(arg1: mps_arena_t, arg2: mps_message_t) -> size_t;
     pub fn mps_message_gc_condemned_size(arg1: mps_arena_t,
                                          arg2: mps_message_t) -> size_t;
     pub fn mps_message_gc_not_condemned_size(arg1: mps_arena_t,
                                              arg2: mps_message_t) -> size_t;
-    pub fn mps_message_gc_start_why(arg1: mps_arena_t, arg2: mps_message_t) ->
-     *const ::libc::c_char;
-    pub fn mps_finalize(arg1: mps_arena_t, arg2: *mut mps_addr_t) ->
-     mps_res_t;
-    pub fn mps_definalize(arg1: mps_arena_t, arg2: *mut mps_addr_t) ->
-     mps_res_t;
-    pub fn mps_telemetry_control(arg1: mps_word_t, arg2: mps_word_t) ->
-     mps_word_t;
+    pub fn mps_message_gc_start_why(arg1: mps_arena_t, arg2: mps_message_t) -> *const ::libc::c_char;
+    pub fn mps_finalize(arg1: mps_arena_t, arg2: *mut mps_addr_t) -> mps_res_t;
+    pub fn mps_definalize(arg1: mps_arena_t, arg2: *mut mps_addr_t) -> mps_res_t;
+    pub fn mps_telemetry_control(arg1: mps_word_t, arg2: mps_word_t) -> mps_word_t;
     pub fn mps_telemetry_set(arg1: mps_word_t);
     pub fn mps_telemetry_reset(arg1: mps_word_t);
     pub fn mps_telemetry_get() -> mps_word_t;
@@ -576,6 +581,12 @@ extern "C" {
     pub static _mps_key_MVFF_ARENA_HIGH : Struct_mps_key_s;
     pub static _mps_key_MVFF_FIRST_FIT : Struct_mps_key_s;
 
+    // mpscamc.h
+    pub fn mps_class_amc()  -> mps_pool_class_t;
+    pub fn mps_class_amcz() -> mps_pool_class_t;
+
+    pub fn mps_amc_apply(arg1 : mps_pool_t, arg2 : mps_amc_apply_stepper_t, arg3 :  *mut ::libc::c_void, arg4 : size_t) -> ::libc::c_void;
+
 }
 
 // mps.h
@@ -610,20 +621,17 @@ static MPS_KEY_MVFF_SLOT_HIGH : mps_key_t = (&_mps_key_MVFF_SLOT_HIGH);
 static MPS_KEY_MVFF_ARENA_HIGH : mps_key_t = (&_mps_key_MVFF_ARENA_HIGH);
 static MPS_KEY_MVFF_FIRST_FIT : mps_key_t = (&_mps_key_MVFF_FIRST_FIT);
 
-
-
-
 fn main() {
     
-    let mut res : mps_res_t = unsafe{ std::mem::zeroed() };
+    let mut res : mps_res_t = unsafe{ mem::zeroed() };
 
-    let mut arena : mps_arena_t = unsafe{ std::mem::zeroed() };
-    let mut pool : mps_pool_t = unsafe{ std::mem::zeroed() };
-    let mut alloc_point : mps_ap_t = unsafe{ std::mem::zeroed() };
+    let mut arena : mps_arena_t = unsafe{ mem::zeroed() };
+    let mut pool : mps_pool_t = unsafe{ mem::zeroed() };
+    let mut alloc_point : mps_ap_t = unsafe{ mem::zeroed() };
 
 
     // ------------------------ Arena ------------------------
-    let mut arena_args : [mps_arg_s, ..2] = unsafe{  std::mem::zeroed() };
+    let mut arena_args : [mps_arg_s, ..2] = unsafe{  mem::zeroed() };
 
     arena_args[0] = Struct_mps_arg_s { key: MPS_KEY_ARENA_SIZE,
                                  val:  mps_args_val { data: [32 * 1024 * 1024] }
@@ -642,7 +650,7 @@ fn main() {
 
     // ------------------------ Pool ------------------------
     const mvff_args_size : uint = 1;
-    let mut mvff_args : [mps_arg_s, ..mvff_args_size] = unsafe{  std::mem::zeroed() };
+    let mut mvff_args : [mps_arg_s, ..mvff_args_size] = unsafe{ mem::zeroed() };
     
     
 
@@ -661,7 +669,7 @@ fn main() {
     // ------------------------ Allocation point ------------------------
     
     const ap_args_size : uint = 1;
-    let mut ap_args : [mps_arg_s, ..ap_args_size] = unsafe{  std::mem::zeroed() };
+    let mut ap_args : [mps_arg_s, ..ap_args_size] = unsafe{  mem::zeroed() };
     
     ap_args[ap_args_size-1] = Struct_mps_arg_s { key: MPS_KEY_ARGS_END,
                                                  val:  mps_args_val { data: [0] }
@@ -674,25 +682,85 @@ fn main() {
         println!("AP created");
     }
 
-
     // ------------------------ Allocation ----------------------
 
-    
-    let mut addr : mps_addr_t = unsafe{ std::mem::zeroed() };
+    let mut addr : mps_addr_t = unsafe{ mem::zeroed() };
 
     loop {
         res = unsafe { mps_reserve(&mut addr, alloc_point, 32) };
-        
+        if (MPS_RES_OK != res) {
+            println!("Clould not reserve");
+        } else {
+            println!("Reserved!");
+        }
+
+
+
         if unsafe { mps_commit(alloc_point, addr, 32) } == 1 {
             println!("allocated: {}", addr);
             break;
         } else {
             println!("not jet allocated"); 
         }
-    }    
+    }
+
+    // ------------------
+    /*
+    MPS_ARGS_BEGIN(args) {
+        MPS_ARGS_ADD(args, MPS_KEY_FMT_ALIGN, ALIGNMENT);
+        MPS_ARGS_ADD(args, MPS_KEY_FMT_SCAN, obj_scan);
+        MPS_ARGS_ADD(args, MPS_KEY_FMT_SKIP, obj_skip);
+        MPS_ARGS_ADD(args, MPS_KEY_FMT_FWD, obj_fwd);
+        MPS_ARGS_ADD(args, MPS_KEY_FMT_ISFWD, obj_isfwd);
+        MPS_ARGS_ADD(args, MPS_KEY_FMT_PAD, obj_pad);
+        res = mps_fmt_create_k(&obj_fmt, arena, args);
+    } MPS_ARGS_END(args);
+    if (res != MPS_RES_OK) error("Couldn't create obj format");
+    */
+
+    const fmt_args_size : uint = 6;
+
+    let mut obj_fmt : mps_fmt_t = unsafe { mem::zeroed() };
+
+    let mut fmt_args : [mps_arg_s, ..fmt_args_size] = unsafe{ mem::zeroed() };
+
+    
+
+    fmt_args[0] = Struct_mps_arg_s { key: MPS_KEY_FMT_ALIGN,
+                                     val: mps_args_val { data: [ 0 ] }
+                                   };
+
+    fmt_args[1] = Struct_mps_arg_s { key: MPS_KEY_FMT_SCAN,
+                                     val: mps_args_val { data: [ 0 ] }
+                                   };
+
+    fmt_args[2] = Struct_mps_arg_s { key: MPS_KEY_FMT_SKIP,
+                                     val: mps_args_val { data: [ 0 ] }
+                                   };
+
+    fmt_args[3] = Struct_mps_arg_s { key: MPS_KEY_FMT_FWD,
+                                     val: mps_args_val { data: [ 0 ] }
+                                   };
+
+    fmt_args[4] = Struct_mps_arg_s { key: MPS_KEY_FMT_ISFWD,
+                                     val: mps_args_val { data: [ 0 ] }
+                                   };
+
+    fmt_args[5] = Struct_mps_arg_s { key: MPS_KEY_FMT_PAD,
+                                     val: mps_args_val { data: [ 0 ] }
+                                   };
+
+    res = unsafe { mps_fmt_create_k(&mut obj_fmt, arena, fmt_args.as_mut_ptr()) };
 
 
+    if (MPS_RES_OK != res) {
+        println!("Couldn't object format created");
+    } else {
+        println!("object format created");
+    }
 
+      unsafe { std::mem::size_of(::libc::c_ulong) } 
+    
 
 }
         //let mut args : &[Struct_mps_arg_s] = &[ Struct_mps_arg_s { key: mem::uninitialized() ,
