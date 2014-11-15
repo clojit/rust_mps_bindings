@@ -715,64 +715,7 @@ pub fn safe_mps_class_amcz() -> mps_pool_class_t {
 
 /////////////////////// Simple Types for AMC example with Scan ////////////////////
 
-/*
-typedef struct fwd2_s {
-    type_t type; // TYPE_FWD2
-    obj_t fwd; // forwarded object
-} fwd2_s;
-
-typedef struct fwd_s {
-    type_t type; // TYPE_FWD 
-    obj_t fwd; // forwarded object 
-    size_t size; // total size of this object 
-} fwd_s;
-
-typedef struct pad1_s {
-    type_t type; // TYPE_PAD1 
-} pad1_s;
-
-typedef struct pad_s {
-    type_t type; // TYPE_PAD
-    size_t size; // total size of this object
-} pad_s;
-
-*/
-
-#[deriving(Show)]
-#[repr(C)]
-pub enum ObjU {
-      Int(i64),
-      Pair(ObjT, ObjT),
-      Fwd(ObjT, size_t),
-      //Pad(size_t),
-}
-
-pub type ObjT = *mut ObjU;
-
-pub fn make_integer (i : i64, ap : mps_ap_t) -> ObjT {
-    let mut obj : ObjT = unsafe { mem::zeroed() };
-    let mut addr : mps_addr_t = unsafe{ mem::zeroed() };
-
-    let size : size_t = mem::size_of::<ObjU>() as u64;
-    //let size : size_t = 32;
-
-    loop {
-        let res = safe_mps_reserve(&mut addr, ap, size);
-        unsafe {
-            obj =  mem::transmute(addr);
-            ptr::write(obj, Int(i));         
-        }
-        if (MPS_RES_OK != res) {
-            panic!("could not reserve int space");
-        } 
-        if safe_mps_commit(ap, addr, size) {
-            break;
-        }
-    }
-    return obj;
-}
-
-pub fn make_pair (car : ObjT, cdr : ObjT, ap : mps_ap_t) -> ObjT {
+/*pub fn make_pair (car : ObjT, cdr : ObjT, ap : mps_ap_t) -> ObjT {
 
     let mut obj : ObjT = unsafe { mem::zeroed() };
     let mut addr : mps_addr_t = unsafe{ mem::zeroed() };
@@ -797,9 +740,9 @@ pub fn make_pair (car : ObjT, cdr : ObjT, ap : mps_ap_t) -> ObjT {
         }
     }
     return obj;
-}
+}*/
 
-pub fn print ( obj_ref : ObjT ) {
+/*pub fn print ( obj_ref : ObjT ) {
     match unsafe { *obj_ref } {
         Int(i) => print!("{}", i),
         Pair(x, y) => { print!( "Pair(" );                        
@@ -816,7 +759,7 @@ pub fn print ( obj_ref : ObjT ) {
 pub fn println ( obj_ref : ObjT ) {
     print(obj_ref);
     print!("\n");
-}
+}*/
 
 
 
@@ -892,40 +835,173 @@ extern fn obj_scan(ss : mps_ss_t, start_base : mps_addr_t, limit : mps_addr_t) -
         (*ss)._ufs = _mps_ufs;
         return MPS_RES_OK;
     }
+}*/
+
+/*extern fn obj_pwd(addr : mps_addr_t, size : size_t) {
+    
+}*/
+
+
+#[deriving(Show)]
+#[repr(C)]
+pub enum CljType {
+    TYPE_PAIR,
+    TYPE_INTEGER,
+    TYPE_FWD2, /* two-word forwarding object */
+    TYPE_FWD, /* three words and up forwarding object */
+    TYPE_PAD1, /* one-word padding object */
+    TYPE_PAD /* two words and up padding object */
 }
-*/
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct clj_type {
+     t : CljType
+}
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct clj_pair {
+    t : CljType,
+    car : obj_t,
+    cdr : obj_t
+}
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct clj_int {
+    t : CljType,
+    i : i64
+}
+
+pub type obj_t = *mut clj_type;
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct fwd2_s {
+    t : CljType,
+    fwd : obj_t
+}
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct fwd_s {
+    t : CljType,
+    fwd : obj_t,
+    size : size_t
+}
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct pad1_s {
+    t : CljType,
+}
+
+#[deriving(Show)]
+#[repr(C)]
+pub struct pad_s {
+    t : CljType,
+    size : size_t
+}
+
+#[deriving(Show)]
+#[repr(C)]
+pub enum clj_ptr {
+    Pair(*mut clj_pair),
+    Int(*mut clj_int),
+    Fwd2(*mut fwd2_s),
+    Fwd(*mut fwd_s),
+    Pad1(*mut pad1_s),
+    Pad(*mut pad_s),
+}
+
+extern fn reflect(obj : obj_t) -> clj_ptr {
+     match unsafe { (*obj).t } {
+        TYPE_PAIR => Pair( unsafe { mem::transmute(obj) } ),
+        TYPE_INTEGER => Int( unsafe { mem::transmute(obj) }),
+        TYPE_FWD2 => Fwd2( unsafe { mem::transmute(obj) }),
+        TYPE_FWD => Fwd( unsafe { mem::transmute(obj) }),
+        TYPE_PAD1 => Pad1( unsafe { mem::transmute(obj) }),
+        TYPE_PAD => Pad( unsafe { mem::transmute(obj) }),
+    }
+}
+
+extern fn mps_reflect(obj : mps_addr_t) -> clj_ptr {
+    reflect( unsafe { mem::transmute(obj) } )
+}
 
 
-extern fn obj_skip(_base : mps_addr_t) -> mps_addr_t {
+extern fn obj_skip(base : mps_addr_t) -> mps_addr_t {
 
-    let mut base = _base.clone();
+    let obj : clj_ptr = mps_reflect(base);
 
-    let obj : ObjT = unsafe { mem::transmute(base) };
-        
-    println!("skip: {}", base);
-    base = unsafe { base.offset(1) };
-    println!("skip2: {}", base); 
+    let pbase : u64 = unsafe { mem::transmute(base) };
+    println!("pbase: {}", pbase);
 
-    return base;
+    let new_base : mps_addr_t = match obj {
+                                  Pair(x) => unsafe { mem::transmute(x.offset(1)) } ,
+                                  Int(x) =>  unsafe { mem::transmute(x.offset(1)) } ,
+                                  Fwd2(x) => unsafe { mem::transmute(x.offset(1)) } ,
+                                  Fwd(x) =>  unsafe { 
+                                                    let size = (*x).size;
+                                                    let new : mps_addr_t = mem::transmute(pbase + size);
+                                                    new
+                                                 },
+                                  Pad1(x) => unsafe { mem::transmute(x.offset(1)) } ,
+                                  Pad(x) => unsafe { 
+                                                    let size = (*x).size;
+                                                    let new : mps_addr_t = mem::transmute(pbase + size);
+                                                    new } ,
+                                };
+
+    let pbase : u64 = unsafe { mem::transmute(new_base) };
+    println!("pbase: {}", pbase); 
+    
+    return new_base;
 }
 
 extern fn obj_fwd(old : mps_addr_t, new : mps_addr_t) {
 
-    let old_obj : ObjT = unsafe { mem::transmute(old) };
-    let new_obj : ObjT = unsafe { mem::transmute(new) };
+    let limit = obj_skip(old);
+    let size : size_t = limit as u64 - old as u64;
 
-    unsafe {
-        ptr::write(old_obj, Fwd( new_obj, mem::size_of::<ObjU>() as u64 ));
-    }
+    assert!( size >= mem::size_of::<fwd2_s>() as u64  );
 
+    if (size == mem::size_of::<fwd2_s>() as u64 ) {
+        unsafe {
+            let old_fwd2 : *mut fwd2_s  = mem::transmute(old);
+            ptr::write(old_fwd2, fwd2_s { t   : TYPE_FWD2,
+                                          fwd : mem::transmute(new) }  );  
+        }
+    } else {
+        unsafe {
+            let old_fwd  : *mut fwd_s  = mem::transmute(old);
+            ptr::write(old_fwd, fwd_s { t : TYPE_FWD,
+                                        fwd : mem::transmute(new),
+                                        size: size }  );  
+        }
+    };
 }
-/*
-pub type mps_fmt_isfwd_t =
-    ::std::option::Option<extern "C" fn(arg1: mps_addr_t) -> mps_addr_t>;
-*/
 
 extern fn obj_isfwd (obj_addr : mps_addr_t) -> mps_addr_t {
-    
+    let obj : obj_t = unsafe { mem::transmute(obj_addr) };
+
+    match unsafe { (*obj).t } {
+        TYPE_FWD => { return unsafe {let obj : *mut fwd_s = mem::transmute(obj);
+                                     let fwd : obj_t = (*obj).fwd;
+                                     mem::transmute(fwd)
+                                    }
+                    },
+        TYPE_FWD2 => { return unsafe {let obj : *mut fwd_s = mem::transmute(obj);
+                                      let fwd : obj_t = (*obj).fwd;
+                                      mem::transmute(fwd)
+                                     }  
+                     },
+        _ => { return unsafe { mem::transmute(0u) } }
+    }
+}
+
+/*
     let obj_ptr : ObjT = unsafe { mem::transmute(obj_addr) }; 
     let obj : ObjU = unsafe { (*obj_ptr) };
 
@@ -933,12 +1009,125 @@ extern fn obj_isfwd (obj_addr : mps_addr_t) -> mps_addr_t {
        Fwd(x, y) => unsafe { mem::transmute(x) }, 
         _ =>  unsafe { mem::transmute(0u) }
      }
+*/
+
+pub fn make_fwd (ap : mps_ap_t) -> obj_t {
+    let mut obj : *mut fwd_s = unsafe { mem::zeroed() };
+    let mut addr : mps_addr_t = unsafe{ mem::zeroed() };
+    let size : size_t = mem::size_of::<clj_pair>() as u64;
+    
+    print!("Alloc fwd Size  {}", size);
+
+    loop {
+        let res = safe_mps_reserve(&mut addr, ap, size);
+        unsafe {
+            obj =  mem::transmute(addr);
+            ptr::write(obj, fwd_s { t : TYPE_FWD,
+                                    fwd : unsafe { mem::transmute(99u) },
+                                    size : size }  );         
+        }
+        if (MPS_RES_OK != res) {
+            panic!("could not reserve fwd pairs space");
+        } 
+        if safe_mps_commit(ap, addr, size) {
+            break;
+        }
+    }
+
+    let i : i64 = unsafe { mem::transmute(obj) };
+    println!(", addr: {}", i ); 
+
+    return unsafe { mem::transmute(obj) };
+}
+
+
+
+pub fn make_integer (i : i64, ap : mps_ap_t) -> obj_t {
+    let mut obj : *mut clj_int = unsafe { mem::zeroed() };
+    let mut addr : mps_addr_t = unsafe{ mem::zeroed() };
+    let size : size_t = mem::size_of::<clj_int>() as u64;
+    
+    print!("Alloc Int Size  {}", size);
+
+    loop {
+        let res = safe_mps_reserve(&mut addr, ap, size);
+        unsafe {
+            obj =  mem::transmute(addr);
+            ptr::write(obj, clj_int { t : TYPE_INTEGER,
+                                      i : i }  );         
+        }
+        if (MPS_RES_OK != res) {
+            panic!("could not reserve int space");
+        } 
+        if safe_mps_commit(ap, addr, size) {
+            break;
+        }
+    }
+
+    let i : i64 = unsafe { mem::transmute(obj) };
+    println!(", addr: {}", i ); 
+
+    return unsafe { mem::transmute(obj) };
+}
+
+pub fn make_pair (car : obj_t, cdr : obj_t, ap : mps_ap_t) -> obj_t {
+    let mut obj : *mut clj_pair = unsafe { mem::zeroed() };
+    let mut addr : mps_addr_t = unsafe{ mem::zeroed() };
+
+    let size : size_t = mem::size_of::<clj_pair>() as u64;
+    
+    print!("Alloc Pair Size {}", size);
+
+    loop {
+        let res = safe_mps_reserve(&mut addr, ap, size);
+        
+        unsafe {
+            obj =  mem::transmute(addr);
+            ptr::write(obj, clj_pair { t : TYPE_PAIR,
+                                       car : car,
+                                       cdr : cdr  } );
+        }
+        if (MPS_RES_OK != res) {
+            panic!("could not reserve pair space");
+        } 
+        if safe_mps_commit(ap, addr, size) {
+            break;
+        }
+    }
+    let i : i64 = unsafe { mem::transmute(obj) };
+    println!(", addr: {}", i ); 
+    return unsafe { mem::transmute(obj) };
+}
+
+
+extern fn obj_pad (addr : mps_addr_t, size : size_t) {
+    
+    let obj : obj_t = unsafe { mem::transmute(addr) };
+
+    assert!( size >= mem::size_of::<pad1_s>() as u64 ); 
+
+    if ( size == mem::size_of::<pad1_s>() as u64 ) {
+        let tobj : *mut pad1_s = unsafe { mem::transmute(addr) };
+
+        unsafe { 
+            ptr::write(tobj, pad1_s { t : TYPE_PAD1 } ) 
+        };
+    } else {
+        let tobj : *mut pad_s = unsafe { mem::transmute(addr) };
+        unsafe { 
+            ptr::write(tobj, pad_s {t : TYPE_PAD,
+                                    size : size } )
+        };
+    }
+
 }
 
 /*static void obj_pad(mps_addr_t addr, size_t size)
 {
     obj_t obj = addr;
+
     assert(size >= ALIGN_OBJ(sizeof(pad1_s)));
+
     if (size == ALIGN_OBJ(sizeof(pad1_s))) {
         TYPE(obj) = TYPE_PAD1;
     } else {
@@ -947,14 +1136,8 @@ extern fn obj_isfwd (obj_addr : mps_addr_t) -> mps_addr_t {
     }
 }*/
 
-extern fn obj_pwd(addr : mps_addr_t, size : size_t) {
-    
-}
-
-
 
 fn main() {
-
     let mut res : mps_res_t = unsafe{ mem::zeroed() };
     let mut arena : mps_arena_t = unsafe{ mem::zeroed() };
     let mut globals_root : mps_root_t = unsafe{ mem::zeroed() };
@@ -977,13 +1160,6 @@ fn main() {
     } else {
         println!("Arena created");
     }
-
-    //println!("ObjU: {}", mem::size_of::<ObjU>());
-    //println!("ObjT: {}", mem::size_of::<ObjT>());
-    //println!("i64:  {}", mem::size_of::<i64>());
-
-    println!( "CljType : {}", mem::size_of::<CljType>() );
-
 
     // ------------------------MVFF Pool (Manual Pool) ------------------------
     println!("---------------- Example Code MVFF Pool --------------------");
@@ -1023,53 +1199,32 @@ fn main() {
         println!("MVFF AP created");
     }
 
-    let i1 : ObjT = make_integer(7, mvff_alloc_point);
-    let i2 : ObjT = make_integer(10, mvff_alloc_point);
-    println!("{}", i1);
-    println!("{}", i2);
+    //let i1 = make_integer(7, mvff_alloc_point);
 
-    let p1 : ObjT = make_pair(i1, i2, mvff_alloc_point);
-    println!("{}", p1);
-
+    //let obj : *mut clj_int =  unsafe { mem::transmute(i1) };
     
-    let p2 = make_pair(p1, make_integer(9, mvff_alloc_point), mvff_alloc_point);
-    println!("{}", p2);
+    let i1 = make_integer(1, mvff_alloc_point);
+    let i2 = make_integer(1, mvff_alloc_point);
 
-    println(p2);
+    let pair = make_pair( i1, 
+                          i2,
+                          mvff_alloc_point);
 
-    //println!("i: {}",  ptr::read(i) );    
-
+    let p : *mut clj_pair = unsafe {  mem::transmute(pair)  };
+    
     // ---------------------------AMC---------------------------------------
-    
-    
+        
     println!("\n---------------- Example Code AMC Pool --------------------");
 
-    
-    //MPS_ARGS_BEGIN(args) {
-    //    MPS_ARGS_ADD(args, MPS_KEY_FMT_ALIGN, ALIGNMENT);
-    //    MPS_ARGS_ADD(args, MPS_KEY_FMT_SCAN, obj_scan);
-    //    MPS_ARGS_ADD(args, MPS_KEY_FMT_SKIP, obj_skip);
-    //    MPS_ARGS_ADD(args, MPS_KEY_FMT_FWD, obj_fwd);
-    //    MPS_ARGS_ADD(args, MPS_KEY_FMT_ISFWD, obj_isfwd);
-    //    MPS_ARGS_ADD(args, MPS_KEY_FMT_PAD, obj_pad);
-    //    res = mps_fmt_create_k(&obj_fmt, arena, args);
-    //} MPS_ARGS_END(args);
-    //if (res != MPS_RES_OK) error("Couldn't create obj format");
-    
     const fmt_args_size : uint = 6;
 
     let mut obj_fmt : mps_fmt_t = unsafe { mem::zeroed() };
 
     let mut fmt_args : [mps_arg_s, ..fmt_args_size] = unsafe{ mem::zeroed() };
 
-    println!("std::mem::size_of::<ObjU>() as u64: {}", std::mem::size_of::<ObjU>() as u64);
-
-    println!("mps_word_t size: {}", std::mem::size_of::<mps_word_t>() as u64);
-
     fmt_args[0] = Struct_mps_arg_s { key: MPS_KEY_FMT_ALIGN,
                                      val: mps_args_val { data: [ 32 ] }
                                    };
-    
     
     let obj_skip_t : mps_fmt_skip_t = Some(obj_skip);
     let obj_skip_c : u64 = unsafe { mem::transmute(obj_skip_t)  };
@@ -1093,10 +1248,11 @@ fn main() {
                                      val: mps_args_val { data: [ obj_isfwd_c ] }
                                    };
 
-    
+    let obj_pad_t : mps_fmt_pad_t = Some(obj_pad);
+    let obj_pad_c : u64 = unsafe { mem::transmute(obj_isfwd_t) };
 
     fmt_args[4] = Struct_mps_arg_s { key: MPS_KEY_FMT_PAD,
-                                     val: mps_args_val { data: [ 0 ] }
+                                     val: mps_args_val { data: [ obj_pad_c ] }
                                    };
 
     fmt_args[5] = Struct_mps_arg_s { key: MPS_KEY_ARGS_END,
@@ -1105,13 +1261,12 @@ fn main() {
 
     res = unsafe { mps_fmt_create_k(&mut obj_fmt, arena, fmt_args.as_mut_ptr()) };
 
-
     if (MPS_RES_OK != res) {
         println!("Couldn't object format created");
     } else {
-        println!("object format created");
+        println!("Object format created");
     }
-
+    
     // ------------------------AMC Pool (Automatic Pool) ------------------------
    
     let mut amc_pool : mps_pool_t = unsafe{ mem::zeroed() };
@@ -1128,16 +1283,15 @@ fn main() {
                                                    val: mps_args_val { data: [0] }
                                  };
     
-
     res = safe_mps_pool_create_k(&mut amc_pool, arena, safe_mps_class_amcz(), amc_args );
 
     if (MPS_RES_OK != res) {
-        println!("Clould not creat AMC pool");
+        println!("Clould not creat AMCZ pool");
     } else {
-        println!("AMC Pool created");
+        println!("AMCZ Pool created");
     }
 
-    // ------------------------ Allocation point AMC ------------------------
+    // ------------------------ Allocation point AMCZ ------------------------
 
     let mut amc_alloc_point : mps_ap_t = unsafe{ mem::zeroed() };
 
@@ -1151,14 +1305,49 @@ fn main() {
     res =  safe_mps_ap_create_k(&mut amc_alloc_point, amc_pool, ap_amc_args);
 
     if (MPS_RES_OK != res) {
-        println!("Clould not creat AMC AP");
+        println!("Clould not create AMC AP");
     } else {
         println!("AMC AP created");
     }
+
+    // ------------------------ Globals AMC ------------------------
     
+    /*
+    mps_root_t globals_root;
+    res = mps_root_create(&globals_root, arena, mps_rank_exact(), 0,
+                        globals_scan, NULL, 0);
+    if (res != MPS_RES_OK) {
+        printf("Couldn't register globals root\n");
+    } else {
+        printf("register globals root\n");
+    }*/
+
+    let globals_root : mps_root_t = unsafe{ mem::zeroed() };
+
+    let root_scan : mps_root_scan_t = Some(globals_scan);
+    
+
+    let res = safe_mps_root_create(&mut globals_root, arena, safe_mps_rank_exact(), 0, globals_scan, , 0 );
+    
+
 }
 
 
+extern fn globals_scan () {
+    
+}
+/*
+    static mps_res_t globals_scan(mps_ss_t ss, void *p, size_t s)
+    {
+        MPS_SCAN_BEGIN(ss) {
+
+            for (int i = 0; i < LENGTH(random_int_list); ++i)
+                FIX(random_int_list[i]);
+
+        } MPS_SCAN_END(ss);
+        return MPS_RES_OK;
+    }
+*/
 
 
 
